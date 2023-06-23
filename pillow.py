@@ -206,55 +206,83 @@ async def pillow_filter(input_filename: str, filter_name: str):
 PILLOW_TEXT_MODE_CREATE_MASK = "CREATE_MASK"
 PILLOW_TEXT_MODE_CREATE_ALPHA_TEXT = "CREATE_ALPHA_TEXT"
 PILLOW_TEXT_MODE_ADD_TEXT = "ADD_TEXT"
-FONTS_DIRECTORY = "integrations/pillow_files/Tests/fonts/"
+FONTS_DIRECTORY = os.path.join(".","Plugins","pillow_plugin","pillow_files","Tests","fonts")
 
 async def pillow_text(input_filename: str, coordinate_x, coordinate_y, text, fill_color, horizontal_anchor_alignment, vertical_anchor_alignment, font_name, font_size, mode):
-    print(f"-------- PillowText_Action : f={input_filename}")
+    try:
+        print(f"-------- PillowText_Action : f={input_filename}")
+        if os.path.exists(input_filename) == False:
+            print(f"[ERROR]: {input_filename} does not exsist! ")
+            return None
+        else:
+            print(f"file {input_filename} exists!")
+        #
+        font_filename = os.path.abspath(os.path.join(FONTS_DIRECTORY, font_name))
+        print(f"font_name = {font_name}")
+        print(f"font_filename = {font_filename}")
+        print(f"current directory = {os.getcwd()}")
 
-    original_image = Image.open(input_filename).convert("RGBA")
-    response_filename = os.path.join(OMNI_TEMP_FOLDER, f"{input_filename}_text.png")
-    print(f"response_filename = {response_filename}")
-    new_image = None
+        image_filename, image_extension = os.path.splitext(os.path.basename(input_filename))
+        print(f"image_filename = {image_filename}")
+    
+        response_filename = os.path.join(OMNI_TEMP_FOLDER, f"{image_filename}_text.png")
+        print(f"response_filename = {response_filename}")
+    
+    
+        original_image = Image.open(input_filename).convert("RGBA")
+        
+        if os.path.exists(font_filename) == False:
+            print(f"[ERROR]: {font_filename} does not exsist! ")
+            return None
+        #
+        font = ImageFont.truetype(font_filename, font_size)
 
-    if mode == PILLOW_TEXT_MODE_CREATE_MASK:
-        fill_color = "white"
-        new_image = Image.new("RGBA", original_image.size)
+        new_image = None
 
-        draw = ImageDraw.Draw(new_image)
-        font = ImageFont.truetype(font_name, font_size)
-        anchor = horizontal_anchor_alignment + vertical_anchor_alignment
-        coordinates = (coordinate_x, coordinate_y)
-        draw.text(coordinates, text, fill_color, anchor=anchor, font=font)           
-        alpha = new_image.convert("L")
-        new_image.putalpha(alpha)               
+        if mode == PILLOW_TEXT_MODE_CREATE_MASK:
+            fill_color = "white"
+            new_image = Image.new("RGBA", original_image.size)
 
-    elif mode ==  PILLOW_TEXT_MODE_CREATE_ALPHA_TEXT:
+            draw = ImageDraw.Draw(new_image)
+            
+            anchor = horizontal_anchor_alignment + vertical_anchor_alignment
+            coordinates = (coordinate_x, coordinate_y)
+            draw.text(coordinates, text, fill_color, anchor=anchor, font=font)           
+            alpha = new_image.convert("L")
+            new_image.putalpha(alpha)               
 
-        font = ImageFont.truetype(font_name, font_size)
-        anchor = horizontal_anchor_alignment + vertical_anchor_alignment
-        coordinates = (coordinate_x, coordinate_y)
+        elif mode ==  PILLOW_TEXT_MODE_CREATE_ALPHA_TEXT:
 
-        mask_fill_color = "white"        
-        new_mask = Image.new("RGBA", original_image.size)
-        mask_draw = ImageDraw.Draw(new_mask)
-        mask_draw.text(coordinates, text, mask_fill_color, anchor=anchor, font=font)    
-        alpha = new_mask.convert("L")
+        
+            anchor = horizontal_anchor_alignment + vertical_anchor_alignment
+            coordinates = (coordinate_x, coordinate_y)
 
-        new_image = original_image.copy()
-        image_draw = ImageDraw.Draw(new_image) 
-        image_draw.text(coordinates, text, fill_color, anchor=anchor, font=font)    
-        new_image.putalpha(alpha)
-  
-    else:
-        new_image = original_image.copy()
-        draw = ImageDraw.Draw(new_image)
-        font = ImageFont.truetype(font_name, font_size)
-        anchor = horizontal_anchor_alignment + vertical_anchor_alignment
-        coordinates = (coordinate_x, coordinate_y)
-        draw.text(coordinates, text, fill_color, anchor=anchor, font=font)    
+            mask_fill_color = "white"        
+            new_mask = Image.new("RGBA", original_image.size)
+            mask_draw = ImageDraw.Draw(new_mask)
+            mask_draw.text(coordinates, text, mask_fill_color, anchor=anchor, font=font)    
+            alpha = new_mask.convert("L")
+
+            new_image = original_image.copy()
+            image_draw = ImageDraw.Draw(new_image) 
+            image_draw.text(coordinates, text, fill_color, anchor=anchor, font=font)    
+            new_image.putalpha(alpha)
+    
+        else:
+            new_image = original_image.copy()
+            draw = ImageDraw.Draw(new_image)
+            
+            anchor = horizontal_anchor_alignment + vertical_anchor_alignment
+            coordinates = (coordinate_x, coordinate_y)
+            draw.text(coordinates, text, fill_color, anchor=anchor, font=font)    
+        #
+
+        new_image.save(response_filename)
+    except Exception as error:
+        print(f"[ERROR] Plugins.pillow_plugin.pillow_plugin pillow_text returned an error: {str(error)}")
+        print(f"Error type: {str(type(error))}")
+        response_filename = None
     #
-
-    new_image.save(response_filename)
     return response_filename
 
 from Plugins.pillow_plugin.pillow_plugin import PillowText_Input,  PillowText_Response, ENDPOINT_PILLOW_TEXT
@@ -270,7 +298,7 @@ async def PillowText_HandlePost(input: PillowText_Input):
         fill_color = input.fill_color
         horizontal_anchor_alignment = input.horizontal_anchor_alignment[0]
         vertical_anchor_alignment = input.vertical_anchor_alignment[0]
-        font_name = os.path.join(FONTS_DIRECTORY, input.font_name)
+        font_name = input.font_name
         font_size = input.font_size
         mode = input.mode
 
@@ -279,7 +307,7 @@ async def PillowText_HandlePost(input: PillowText_Input):
         #         fill_color = "white"    
         #         print("[WARNING] Adjusting fill color")
 
-        images = input.images
+     
         print(f"coordinate_x = {coordinate_x}")
         print(f"coordinate_y = {coordinate_y}")
         print(f"text = {text}")
@@ -289,13 +317,25 @@ async def PillowText_HandlePost(input: PillowText_Input):
         print(f"font_name = {font_name}")
         print(f"font_size = {font_size}")
         print(f"mode = {mode}")
-        print(f"images = {images}")
 
-        cdn_results = await cdn.process(pillow_text, images, coordinate_x, coordinate_y, text, fill_color, horizontal_anchor_alignment, vertical_anchor_alignment, font_name, font_size, mode)
-        print(f"results = {cdn_results}")
-        print("\n-----------------------\n")
+        input_cdns = input.images
+        input_filenames = await cdn.download_files_from_cdn(input_cdns)
+        print(f"input_filenames = {input_filenames}")
+        result_filenames = []
+        results_cdns = []
+        for input_filename in input_filenames:
+            result_filename = await pillow_text(input_filename, coordinate_x, coordinate_y, text, fill_color, horizontal_anchor_alignment, vertical_anchor_alignment, font_name, font_size, mode)
+            result_filenames.append(result_filename)
+            print(f"result_filename = {result_filename}")
+        #
+        print(f"result_filenames = {result_filenames}")
+        if result_filenames != None:  
+            results_cdns = await cdn.upload_files_to_cdn(result_filenames)
 
-        return PillowText_Response(media_array=cdn_results) 
+        # delete the results files from the local storage
+        cdn.delete_temp_files(result_filenames)
+
+        return PillowText_Response(media_array=results_cdns) 
 routes_info[ENDPOINT_PILLOW_TEXT] = (PillowText_Input, PillowText_HandlePost)
 # --------------- PILLOW REMOVE ALPHA ---------------------
 
